@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Text to Speech with AWS</title>
+  <style>
+    body { font-family: Arial; text-align: center; margin-top: 60px; }
+    textarea { width: 60%; height: 150px; padding: 10px; }
+    button { padding: 10px 20px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>🎙️ Type Text to Convert to Speech</h2>
+  <textarea id="textInput" placeholder="Type something..."></textarea><br>
+  <button onclick="uploadText()">Convert to Voice</button>
+  <p id="status"></p>
+
+  <script>
+    const bucketName = "text2talk-source-bucket";
+    const region = "ap-south-1"; // change as per your region
+    const identityPoolId = "YOUR_COGNITO_IDENTITY_POOL_ID"; // needed for upload permission
+
+    AWS.config.region = region;
+    AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+      IdentityPoolId: identityPoolId,
+    });
+
+    const s3 = new AWS.S3({ apiVersion: "2006-03-01" });
+
+    async function uploadText() {
+      const text = document.getElementById("textInput").value;
+      if (!text) {
+        alert("Please enter text!");
+        return;
+      }
+
+      const blob = new Blob([text], { type: "text/plain" });
+      const key = `input_${Date.now()}.txt`;
+
+      document.getElementById("status").textContent = "Uploading text to S3...";
+
+      const params = {
+        Bucket: bucketName,
+        Key: key,
+        Body: blob,
+        ContentType: "text/plain"
+      };
+
+      try {
+        await s3.putObject(params).promise();
+        document.getElementById("status").textContent = "Text uploaded successfully! Lambda will now generate voice file.";
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").textContent = "Error uploading text: " + err.message;
+      }
+    }
+  </script>
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1455.0.min.js"></script>
+</body>
+</html>
